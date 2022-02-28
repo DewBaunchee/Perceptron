@@ -12,7 +12,6 @@ import javafx.scene.control.TextArea
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import java.io.File
-import java.lang.StringBuilder
 import java.util.*
 import java.util.stream.IntStream
 import kotlin.streams.toList
@@ -56,7 +55,7 @@ class HelloController {
                     sample[row * cols + col] = if (new == activeClass) 1 else 0
                 }
 
-                val drawing = { pane.style = if (drawing) activeClass else "" }
+                val drawing = { pane.style = if (drawing) activeClass else ""; evaluateClasses() }
                 pane.setOnMouseDragOver { drawing() }
                 pane.setOnMouseClicked { drawing() }
 
@@ -100,18 +99,6 @@ class HelloController {
     }
 
     @FXML
-    private fun onEvaluateClassClick() {
-        log.text = perceptron.evaluateClasses(Vector(values = sample))
-            .entries.stream()
-            .collect(
-                { HashMap<Int, Int>() },
-                { acc, entry -> acc[entry.key] = (entry.value * 100).toInt() },
-                { a, b -> a.putAll(b) }
-            )
-            .entries.joinToString("\n")
-    }
-
-    @FXML
     private fun onPenClick() {
         drawing = true
     }
@@ -148,8 +135,19 @@ class HelloController {
         train()
     }
 
+    private fun evaluateClasses() {
+        log.text = perceptron.evaluateClasses(Vector(values = sample))
+            .entries.stream()
+            .collect(
+                { HashMap<Int, Int>() },
+                { acc, entry -> acc[entry.key] = (entry.value * 100).toInt() },
+                { a, b -> a.putAll(b) }
+            )
+            .entries.joinToString("\n")
+    }
+
     private fun createPerceptron() {
-        perceptron = Perceptron(1, 80, rows * cols, clusters.toSet())
+        perceptron = Perceptron(1, rows * cols, clusters.toSet())
         train()
     }
 
@@ -169,7 +167,7 @@ class HelloController {
             }
         }
         IntStream.iterate(0) { it + 1 }
-            .takeWhile { perceptron.evaluateClasses(Vector(1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1))[0]!! < 0.2 }
+            .limit(100000)
             .peek {
                 println(
                     "Iteration #$it (evaluating '0'): " +

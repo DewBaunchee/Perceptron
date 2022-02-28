@@ -22,11 +22,6 @@
         <padding>
             <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
         </padding>
-        <Button onAction="#onEvaluateClassClick" text="Evaluate class">
-            <HBox.margin>
-                <Insets right="20.0" />
-            </HBox.margin>
-        </Button>
         <Button layoutX="139.0" layoutY="30.0" mnemonicParsing="false" onAction="#onTrainClick" text="Train">
             <HBox.margin>
                 <Insets right="20.0" />
