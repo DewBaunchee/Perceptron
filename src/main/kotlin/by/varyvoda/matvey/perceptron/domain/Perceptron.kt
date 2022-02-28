@@ -12,6 +12,7 @@ class Perceptron {
         fun fromFile(file: File): Perceptron {
             val scanner = Scanner(file)
             val c = scanner.nextLine().toInt()
+            val threshold = scanner.nextLine().toInt()
             val clusters = HashMap<Int, Cluster>()
 
             while (scanner.hasNextLine()) {
@@ -20,16 +21,19 @@ class Perceptron {
                     Cluster(cluster[0], Vector(values = cluster.subList(1, cluster.size).toIntArray()))
             }
 
-            return Perceptron(c, clusters)
+            return Perceptron(c, threshold, clusters)
         }
     }
 
     private val c: Int
 
+    private val threshold: Int
+
     private val clusters: Map<Int, Cluster>
 
-    constructor(c: Int, weightsSize: Int, clusters: Set<Int>) : this(
+    constructor(c: Int, threshold: Int, weightsSize: Int, clusters: Set<Int>) : this(
         c,
+        threshold,
         clusters.stream()
             .collect(
                 toMap(Function.identity()) { cluster ->
@@ -39,53 +43,44 @@ class Perceptron {
     )
 
 
-    private constructor(c: Int, clusters: Map<Int, Cluster>) {
+    private constructor(c: Int, threshold: Int, clusters: Map<Int, Cluster>) {
         this.c = c
         this.clusters = clusters
+        this.threshold = threshold
     }
 
-    fun evaluateClass(sample: Vector): Map<Int, Double> {
+    fun evaluateClasses(sample: Vector): Map<Int, Double> {
         val summaryStatistics =
             clusters.entries.stream().mapToInt { sample.scalarMul(it.value.weights) }.summaryStatistics()
         return clusters.entries.stream()
             .collect(
                 { HashMap() },
                 { acc, entry ->
-                    acc[entry.key] = if(summaryStatistics.sum == 0L) 0.0 else sample.scalarMul(entry.value.weights).toDouble() / summaryStatistics.sum
+                    acc[entry.key] = if (summaryStatistics.sum == 0L) 0.0 else sample.scalarMul(entry.value.weights)
+                        .toDouble() / summaryStatistics.sum
                 },
                 { a, b -> a.putAll(b) }
             )
     }
 
-    fun train(sample: Sample): Boolean {
-        if (isMissed(sample)) {
-            punish(sample)
-            return true
-        }
-        return false
+    fun evaluateClass(sample: Vector): Int {
+        return evaluateClasses(sample).entries.maxWithOrNull(compareBy { it.value })!!.key
     }
 
-    private fun isMissed(sample: Sample): Boolean {
+    fun train(sample: Sample) {
         val parentCluster = clusters[sample.clusterId]!!
+        var hasMiss = false
         clusters.forEach clusters@{ entry ->
             val cluster = entry.value
             if (sample.clusterId == cluster.id) return@clusters
 
-            if (sample.vector.scalarMul(parentCluster.weights) <= sample.vector.scalarMul(cluster.weights)) {
-                return true
+            if (evaluateClasses(sample.vector)[sample.clusterId]!! < threshold) {
+                cluster.weights = cluster.weights.minus(sample.vector.mul(c))
+                parentCluster.weights = parentCluster.weights.plus(sample.vector.mul(c))
+                hasMiss = true
             }
         }
-        return false
-    }
-
-    private fun punish(sample: Sample) {
-        clusters.forEach clusters@{ entry ->
-            val cluster = entry.value
-            if (sample.clusterId == cluster.id) {
-                cluster.weights = cluster.weights.plus(sample.vector.mul(c))
-                return@clusters
-            }
-            cluster.weights = cluster.weights.minus(sample.vector.mul(c))
+        if (hasMiss) {
         }
     }
 

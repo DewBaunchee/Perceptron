@@ -12,9 +12,9 @@ import javafx.scene.control.TextArea
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import java.io.File
+import java.lang.StringBuilder
 import java.util.*
 import java.util.stream.IntStream
-import java.util.stream.Stream
 import kotlin.streams.toList
 
 
@@ -101,7 +101,7 @@ class HelloController {
 
     @FXML
     private fun onEvaluateClassClick() {
-        log.text = perceptron.evaluateClass(Vector(values = sample))
+        log.text = perceptron.evaluateClasses(Vector(values = sample))
             .entries.stream()
             .collect(
                 { HashMap<Int, Int>() },
@@ -133,7 +133,14 @@ class HelloController {
         if (!folder.exists()) folder.mkdirs()
 
         val file = File(folderPath + "/" + UUID.randomUUID())
-        file.writeText(sample.joinToString(" "))
+
+        val sb = StringBuilder()
+        for (row in 0 until rows) {
+            for (col in 0 until cols) {
+                sb.append(sample[row * cols + col]).append(if (col == cols - 1) "\n" else " ")
+            }
+        }
+        file.writeText(sb.toString())
     }
 
     @FXML
@@ -142,32 +149,35 @@ class HelloController {
     }
 
     private fun createPerceptron() {
-        perceptron = Perceptron(1, rows * cols, clusters.toSet())
+        perceptron = Perceptron(1, 80, rows * cols, clusters.toSet())
         train()
     }
 
     private fun train() {
+        val samplesFolder = File("samples")
+        if (!samplesFolder.exists()) return
+        val samples = samplesFolder.listFiles()!!.flatMap { folder ->
+            if (!folder.exists()) listOf()
+            else folder.listFiles()!!.map { file ->
+                Sample(
+                    Vector(values = file.readText()
+                        .split(" ", "\r\n")
+                        .map { it.toInt() }
+                        .toIntArray()),
+                    folder.name.toInt()
+                )
+            }
+        }
         IntStream.iterate(0) { it + 1 }
-            .takeWhile { perceptron.evaluateClass(Vector(1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1))[0]!! < 20.0 }
+            .takeWhile { perceptron.evaluateClasses(Vector(1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1))[0]!! < 0.2 }
+            .peek {
+                println(
+                    "Iteration #$it (evaluating '0'): " +
+                            perceptron.evaluateClasses(Vector(1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1))
+                                .map { entry -> entry.key.toString() + " = " + "%.2f".format(entry.value) })
+            }
             .forEach {
-                println("Iteration: $it")
-                println(perceptron)
-                val samples = File("samples")
-                if (!samples.exists()) return@forEach
-                samples.listFiles()!!
-                    .forEach folders@{ folder ->
-                        if (!folder.exists()) return@folders
-                        folder.listFiles()!!
-                            .forEach { file ->
-                                perceptron.train(Sample(
-                                    Vector(values = file.readText()
-                                        .split(" ")
-                                        .map { it.toInt() }
-                                        .toIntArray()),
-                                    folder.name.toInt()
-                                ))
-                            }
-                    }
+                perceptron.train(samples.random())
             }
     }
 }
