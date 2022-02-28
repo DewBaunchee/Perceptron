@@ -37,7 +37,7 @@ private fun <R> parallel(
         right: Vector,
         operator: (acc: R, left: Int, right: Int) -> R
 ): R {
-    if (left.values.size != right.values.size) throw IllegalArgumentException("Vector lengths are different!");
+    if (left.values.size != right.values.size) throw IllegalArgumentException("Vector lengths are different!")
 
     var accumulator = initial
     for (i in left.values.indices) {
